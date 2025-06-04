@@ -258,8 +258,6 @@ def laplace_2d(num_x, num_y):
 def laplace(num):
     return -2 * np.eye(num) + np.eye(num, k=1) + np.eye(num, k=-1)
 
-m, n = A.shape
-
 H = laplace_2d(num_x, num_y).T @ laplace_2d(num_x, num_y)
 
 guess = np.linalg.inv(A.T @ A + lambda_ * H) @ A.T @ b
@@ -276,8 +274,6 @@ prob = cp.Problem(objective, constraints)
 prob.solve(solver=cp.SCS, verbose=False)
 guess2 = x.value
 guess2 = guess2.reshape(num_x, num_y).T
-
-guess2 = convolve2d(guess2, kernal, mode='same')
 
 fig = plot(grid_, lines)
 

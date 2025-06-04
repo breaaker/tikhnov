@@ -239,8 +239,6 @@ prob.solve(solver=cp.SCS, verbose=False)
 guess = x.value
 guess = guess.reshape(num_x, num_y).T
 
-guess = convolve2d(guess, kernal, mode='same')
-
 fig = plot(grid_, lines)
 X, Y = np.meshgrid(np.linspace(-1, 1, num_x), np.linspace(-1, 1, num_y))
 ax = fig.add_subplot(132, projection='3d')

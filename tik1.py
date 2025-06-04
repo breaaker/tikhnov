@@ -33,7 +33,7 @@ def inter(a, b, c, r):
         elif x == -r or x == r:
             points.append([x, 0])
     else:
-        delta = (2*a*c)**2 - 4*(a**2 + b**2)*(c**2 - r**2)
+        delta = (2*a*c)**2 - 4*(a**2 + b**2)*(c**2 - b**2*r**2)
         if delta == 0:
             x = -a*c / (a**2 + b**2)
             y = -(a*x + c) / b
@@ -48,17 +48,33 @@ def inter(a, b, c, r):
     return points
 
 # 计算弦在网格内的长度
-def length(line, cube):
+def length(line, cube, rmin):
+    '''
+    d为弦距离圆心的距离
+    '''
     a, b, c = line.a, line.b, line.c
+    d = abs(c) / np.sqrt(a**2 + b**2)
     r1, r2 = cube.r1, cube.r2
     points = inter(a, b, c, r1)
     points += inter(a, b, c, r2)
-    opiont = line.opoint
+    opoint = line.opoint
 
-    if len(points) >= 2:
-            points = sorted(points, key=lambda p: np.linalg.norm(np.array(p) - np.array(opiont)))
-            p1, p2 = points[:2]
-            return np.linalg.norm(np.array(p1) - np.array(p2))
+    if len(points) == 4 and d < rmin:
+        points = sorted(points, key=lambda p: np.linalg.norm(np.array(p) - np.array(opoint)))
+        p1, p2 = points[:2]
+        return np.linalg.norm(np.array(p1) - np.array(p2))
+    elif len(points) == 4 and d >= rmin:
+        points = sorted(points, key=lambda p: np.linalg.norm(np.array(p) - np.array(opoint)))
+        p1, p2 = points[0], points[3]
+        return np.linalg.norm(np.array(p1) - np.array(p2))
+    elif len(points) == 3:
+        points = sorted(points, key=lambda p: np.linalg.norm(np.array(p) - np.array(opoint)))
+        p1, p2 = points[0], points[2]
+        return np.linalg.norm(np.array(p1) - np.array(p2))
+    elif len(points) == 2:
+        points = sorted(points, key=lambda p: np.linalg.norm(np.array(p) - np.array(opoint)))
+        p1, p2 = points[0], points[1]
+        return np.linalg.norm(np.array(p1) - np.array(p2))
     else:
         return 0
 
@@ -103,8 +119,8 @@ def generate_line(x, y, theta_1, theta_2, num):
 # 绘图表示网格和弦
 def plot(grid, lines, lines_num):
     grid = grid.cubes
-    fig = plt.figure(figsize=(18, 5))
-    ax = fig.add_subplot(131)
+    fig = plt.figure(figsize=(18, 4))
+    ax = fig.add_subplot(141)
 
     ax.add_artist(plt.Circle((0, 0), grid[0].r1, color='black', fill=False))
     ax.add_artist(plt.Circle((0, 0), grid[-1].r2, color='black', fill=False))
@@ -142,10 +158,11 @@ def plot(grid, lines, lines_num):
 # 得到观察矩阵A
 def get_A(grid, lines):
     grid = grid.cubes
+    r_min = grid[0].r1
     A = np.zeros((len(lines), len(grid)))
     for i in range(len(lines)):
         for j in range(len(grid)):
-            A[i][j] = length(lines[i], grid[j])
+            A[i][j] = length(lines[i], grid[j], r_min)
     return A
 
 ##################################################
@@ -180,7 +197,7 @@ guess_smooth = np.convolve(guess, np.ones(3)/3, mode='same')
 # 绘图
 fig = plot(grid_, lines, num_lines)
 
-ax = fig.add_subplot(132)
+ax = fig.add_subplot(142)
 ax.set_title('$\Gamma=I$')
 ax.plot(grid_.x, ori, label='original')
 ax.plot(grid_.x, guess, label='result', alpha=0.5, linestyle='--')
@@ -196,9 +213,9 @@ m, n = A.shape
 L = laplace(n)
 H = L.T @ L
 guess = np.linalg.inv(A.T @ A + lambda_ * H) @ A.T @ b
-guess_smooth = np.convolve(guess, np.ones(5)/5, mode='same')
+guess_smooth = np.convolve(guess, np.ones(3)/3, mode='same')
 
-ax = fig.add_subplot(133)
+ax = fig.add_subplot(143)
 ax.set_title('$\Gamma=\\nabla^2$')
 ax.plot(grid_.x, ori, label='original')
 ax.plot(grid_.x, guess, label='result', alpha=0.5, linestyle='--')
@@ -207,7 +224,7 @@ ax.set_xlabel('r')
 ax.set_ylabel('Intensity')
 ax.legend()
 
-'''import cvxpy as cp
+import cvxpy as cp
 x = cp.Variable(n)
 obj = cp.Minimize(cp.norm(A @ x - b) + lambda_ * cp.norm(L @ x))
 constraints = [x >= 0]
@@ -215,7 +232,7 @@ prob = cp.Problem(obj, constraints)
 prob.solve(solver=cp.SCS, verbose=False)
 guess2 = x.value
 
-guess2_smooth = np.convolve(guess2, np.ones(5)/5, mode='same')
+guess2_smooth = np.convolve(guess2, np.ones(3)/3, mode='same')
 ax = fig.add_subplot(144)
 ax.set_title('$\Gamma=\\nabla$ and $x\geq0$')
 ax.plot(grid_.x, ori, label='original')
@@ -223,19 +240,8 @@ ax.plot(grid_.x, guess2, label='result', alpha=0.5, linestyle='--')
 ax.plot(grid_.x, guess2_smooth, label='smooth_result')
 ax.set_xlabel('r')
 ax.set_ylabel('Intensity')
-ax.legend()'''
+ax.legend()
 
 plt.savefig("tik1.png", dpi=300)
 plt.show()
 plt.close()
-
-
-plt.figure(figsize=(5.5, 5))
-plt.title("$\Gamma=\\nabla^2$")
-plt.plot(grid_.x, ori, label='original')
-plt.plot(grid_.x, guess, label='result')
-plt.xlabel('r')
-plt.ylabel('Intensity')
-plt.legend()
-plt.savefig('tikhonov.png', dpi=300)
-plt.show()
